@@ -14,7 +14,7 @@ app.use(express.json());
 app.get('/products', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from('Products')
+      .from('products')
       .select('*');
 
     if (error) {
