@@ -32,5 +32,5 @@ app.get('/products', async (req, res) => {
 });
 
 app.listen(PORT, () => {
- console.log(`Servidor corriendo en el puerto ${PORT}`);
+ console.log(`Servidor corrieendo en el puerto ${PORT}`);
 });
