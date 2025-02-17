@@ -70,35 +70,54 @@ app.post('/register', async (req, res) => {
 });
 
 
-
 app.post("/login", async (req, res) => {
   try {
+    console.log("Solicitud recibida en /login con datos:", req.body); 
+
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email y contraseña son obligatorios" });
     }
 
+    // Consulta en Supabase
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
       .eq("email", email)
       .maybeSingle();
 
-    if (error || !user) {
+    console.log("Resultado de la consulta a Supabase:", user, error);
+
+    if (error) {
+      console.error("Error en la consulta:", error);
+      return res.status(500).json({ message: "Error en la base de datos" });
+    }
+
+    if (!user) {
+      console.log("Usuario no encontrado");
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    console.log("Usuario encontrado:", user);
+
+    // Verificación de contraseña
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    console.log("¿Contraseña correcta?:", isPasswordCorrect);
+
     if (!isPasswordCorrect) {
+      console.log("Contraseña incorrecta");
       return res.status(401).json({ message: "Credenciales incorrectas" });
     }
 
+    // Generar token
     const token = jwt.sign(
       { userId: user.user_id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+
+    console.log("Token generado:", token);
 
     return res.status(200).json({ message: "Login exitoso", token });
   } catch (err) {
@@ -106,8 +125,6 @@ app.post("/login", async (req, res) => {
     return res.status(500).json({ message: "Error interno del servidor" });
   }
 });
-
-
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
