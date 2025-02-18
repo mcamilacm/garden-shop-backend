@@ -80,7 +80,7 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Email y contraseña son obligatorios" });
     }
 
-    // Consulta en Supabase
+
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
@@ -101,7 +101,7 @@ app.post("/login", async (req, res) => {
 
     console.log("Usuario encontrado:", user);
 
-    // Verificación de contraseña
+
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     console.log("¿Contraseña correcta?:", isPasswordCorrect);
 
@@ -110,7 +110,6 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Credenciales incorrectas" });
     }
 
-    // Generar token
     const token = jwt.sign(
       { userId: user.user_id, email: user.email },
       process.env.JWT_SECRET,
@@ -125,6 +124,62 @@ app.post("/login", async (req, res) => {
     return res.status(500).json({ message: "Error interno del servidor" });
   }
 });
+
+// Importar dependencias necesarias
+const express = require("express");
+const supabase = require("./db");
+const router = express.Router();
+
+// Obtener los favoritos del usuario
+router.get("/favorites", async (req, res) => {
+  const { userId } = req.query; // Recibe el userId desde el frontend
+  if (!userId) return res.status(400).json({ message: "Usuario no autenticado" });
+
+  const { data, error } = await supabase
+    .from("favorites")
+    .select("product_id")
+    .eq("user_id", userId);
+
+  if (error) return res.status(500).json({ message: "Error obteniendo favoritos" });
+
+  res.status(200).json(data.map((fav) => fav.product_id)); // Devolver solo los IDs de productos
+});
+
+// Añadir un favorito
+router.post("/favorites", async (req, res) => {
+  const { userId, productId } = req.body;
+
+  if (!userId) return res.status(400).json({ message: "Usuario no autenticado" });
+
+  const { error } = await supabase
+    .from("favorites")
+    .insert([{ user_id: userId, product_id: productId }]);
+
+  if (error) return res.status(500).json({ message: "Error al agregar a favoritos" });
+
+  res.status(201).json({ message: "Producto añadido a favoritos" });
+});
+
+// Eliminar un favorito
+router.delete("/favorites/:productId", async (req, res) => {
+  const { userId } = req.query;
+  const { productId } = req.params;
+
+  if (!userId) return res.status(400).json({ message: "Usuario no autenticado" });
+
+  const { error } = await supabase
+    .from("favorites")
+    .delete()
+    .eq("user_id", userId)
+    .eq("product_id", productId);
+
+  if (error) return res.status(500).json({ message: "Error al eliminar de favoritos" });
+
+  res.status(200).json({ message: "Producto eliminado de favoritos" });
+});
+
+module.exports = router;
+
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
