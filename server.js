@@ -27,10 +27,8 @@ app.get('/products', async (req, res) => {
 });
 
 
-
 app.post('/register', async (req, res) => {
   try {
-    console.log('Datos recibidos del frontend:', req.body);
     const { first_name, last_name, email, password, birth_date, city } = req.body;
 
     if (!first_name || !last_name || !email || !password) {
@@ -64,12 +62,9 @@ app.post('/register', async (req, res) => {
 
     res.status(201).json({ message: 'Usuario registrado exitosamente', user: data[0] });
   } catch (err) {
-    console.error('Error al registrar usuario:', err);
-    res.status(500).json({ message: 'Error interno del servidor al registrar usuario', error: err.message });
+    res.status(500).json({ message: 'Error interno del servidor', error: err.message });
   }
 });
-
-
 
 app.post("/login", async (req, res) => {
   try {
@@ -85,7 +80,9 @@ app.post("/login", async (req, res) => {
       .eq("email", email)
       .maybeSingle();
 
-    if (error || !user) {
+    if (error) return res.status(500).json({ message: "Error en la base de datos" });
+
+    if (!user) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
@@ -100,14 +97,63 @@ app.post("/login", async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    return res.status(200).json({ message: "Login exitoso", token });
+    return res.status(200).json({ 
+      message: "Login exitoso",
+      token,
+      user: { userId: user.user_id, email: user.email, name: user.first_name }
+    });
   } catch (err) {
-    console.error("Error en el login:", err);
     return res.status(500).json({ message: "Error interno del servidor" });
   }
 });
+app.get("/favorites", async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).json({ message: "Usuario no autenticado" });
+
+  const { data, error } = await supabase
+    .from("favorites")
+    .select("product_id")
+    .eq("user_id", userId);
+
+  if (error) return res.status(500).json({ message: "Error obteniendo favoritos" });
+
+  res.status(200).json(data.map((fav) => fav.product_id));
+});
 
 
+app.post("/favorites", async (req, res) => {
+  const { userId, productId } = req.body;
+
+  if (!userId) return res.status(400).json({ message: "Usuario no autenticado" });
+
+  const { error } = await supabase
+    .from("favorites")
+    .insert([{ user_id: userId, product_id: productId }]);
+
+  if (error) return res.status(500).json({ message: "Error al agregar a favoritos" });
+
+  res.status(201).json({ message: "Producto añadido a favoritos" });
+});
+
+
+app.delete("/favorites/:productId", async (req, res) => {
+  const { userId } = req.query;
+  const { productId } = req.params;
+
+  if (!userId) return res.status(400).json({ message: "Usuario no autenticado" });
+
+  const { error } = await supabase
+    .from("favorites")
+    .delete()
+    .eq("user_id", userId)
+    .eq("product_id", productId);
+
+  if (error) return res.status(500).json({ message: "Error al eliminar de favoritos" });
+
+  res.status(200).json({ message: "Producto eliminado de favoritos" });
+});
+
+/** 🔹 INICIAR EL SERVIDOR */
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
