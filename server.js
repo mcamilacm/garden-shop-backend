@@ -19,6 +19,9 @@ app.use("/auth", authRoutes);
 app.use("/products", productRoutes);
 app.use("/favorites", favoritesRoutes);
 
+app.get("/", (req, res) => {
+  res.send("🚀 API de Garden Shop funcionando correctamente");
+});
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
