@@ -1,14 +1,19 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
-const supabase = require('./db');
-const bcrypt = require('bcrypt');
+const express = require("express");
+const cors = require("cors");
+require("dotenv").config();
+const supabase = require("./db");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+
+
+const authRoutes = require("./routes/authRoutes");
+const productRoutes = require("./routes/productRoutes");
+const favoritesRoutes = require("./routes/favoritesRoutes"); 
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors({ origin: "http://localhost:3000" }));
 app.use(express.json());
 
 
@@ -70,16 +75,14 @@ app.post('/register', async (req, res) => {
 });
 
 
+
 app.post("/login", async (req, res) => {
   try {
-    console.log("Solicitud recibida en /login con datos:", req.body); 
-
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email y contraseña son obligatorios" });
     }
-
 
     const { data: user, error } = await supabase
       .from("users")
@@ -87,26 +90,12 @@ app.post("/login", async (req, res) => {
       .eq("email", email)
       .maybeSingle();
 
-    console.log("Resultado de la consulta a Supabase:", user, error);
-
-    if (error) {
-      console.error("Error en la consulta:", error);
-      return res.status(500).json({ message: "Error en la base de datos" });
-    }
-
-    if (!user) {
-      console.log("Usuario no encontrado");
+    if (error || !user) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    console.log("Usuario encontrado:", user);
-
-
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    console.log("¿Contraseña correcta?:", isPasswordCorrect);
-
     if (!isPasswordCorrect) {
-      console.log("Contraseña incorrecta");
       return res.status(401).json({ message: "Credenciales incorrectas" });
     }
 
@@ -116,8 +105,6 @@ app.post("/login", async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    console.log("Token generado:", token);
-
     return res.status(200).json({ message: "Login exitoso", token });
   } catch (err) {
     console.error("Error en el login:", err);
@@ -125,60 +112,6 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Importar dependencias necesarias
-const express = require("express");
-const supabase = require("./db");
-const router = express.Router();
-
-// Obtener los favoritos del usuario
-router.get("/favorites", async (req, res) => {
-  const { userId } = req.query; // Recibe el userId desde el frontend
-  if (!userId) return res.status(400).json({ message: "Usuario no autenticado" });
-
-  const { data, error } = await supabase
-    .from("favorites")
-    .select("product_id")
-    .eq("user_id", userId);
-
-  if (error) return res.status(500).json({ message: "Error obteniendo favoritos" });
-
-  res.status(200).json(data.map((fav) => fav.product_id)); // Devolver solo los IDs de productos
-});
-
-// Añadir un favorito
-router.post("/favorites", async (req, res) => {
-  const { userId, productId } = req.body;
-
-  if (!userId) return res.status(400).json({ message: "Usuario no autenticado" });
-
-  const { error } = await supabase
-    .from("favorites")
-    .insert([{ user_id: userId, product_id: productId }]);
-
-  if (error) return res.status(500).json({ message: "Error al agregar a favoritos" });
-
-  res.status(201).json({ message: "Producto añadido a favoritos" });
-});
-
-// Eliminar un favorito
-router.delete("/favorites/:productId", async (req, res) => {
-  const { userId } = req.query;
-  const { productId } = req.params;
-
-  if (!userId) return res.status(400).json({ message: "Usuario no autenticado" });
-
-  const { error } = await supabase
-    .from("favorites")
-    .delete()
-    .eq("user_id", userId)
-    .eq("product_id", productId);
-
-  if (error) return res.status(500).json({ message: "Error al eliminar de favoritos" });
-
-  res.status(200).json({ message: "Producto eliminado de favoritos" });
-});
-
-module.exports = router;
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
